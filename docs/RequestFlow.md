@@ -11,6 +11,7 @@ The FastAPI backend strictly enforces JWT validation for all `/api/v1/*` endpoin
 When an authenticated user requests an endpoint, their token is decoded, and their claims are mapped to an internal database User automatically via a just-in-time provisioning process.
 
 After authentication, the Authorization layer evaluates the user's role and requested permissions before allowing API access.
+All subsequent API logic, repository interactions, and database queries are strictly constrained to the user's implicit `tenant_id`.
 
 ```mermaid
 sequenceDiagram
@@ -23,9 +24,9 @@ sequenceDiagram
 
     Client->>Entra: Microsoft Login (OAuth2 Flow)
     Entra-->>Client: Access Token (JWT)
-    Client->>API: HTTP Request + Bearer Token
+    Client->>API: HTTP Request + Bearer Token (incl. tid claim)
     API->>API: Validate Token Signature & Expiry
-    API->>DB: Get User by Azure Object ID (oid claim)
+    API->>DB: Get User by Azure Object ID & Tenant ID
     
     alt User Not Found
         API->>DB: Auto-provision User (id, email, name, role=viewer)
@@ -298,4 +299,3 @@ flowchart LR
 ```
 
 This keeps API requests responsive, makes retries safer, and allows longer-running Azure scans without tying up web workers.
-

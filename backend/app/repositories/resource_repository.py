@@ -11,9 +11,10 @@ class ResourceRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def bulk_create(self, *, analysis_id: uuid.UUID, resources: list[AzureResource]) -> list[Resource]:
+    def bulk_create(self, *, tenant_id: str, analysis_id: uuid.UUID, resources: list[AzureResource]) -> list[Resource]:
         entities = [
             Resource(
+                tenant_id=tenant_id,
                 analysis_id=analysis_id,
                 resource_id=resource.resource_id,
                 name=resource.name,
@@ -28,6 +29,8 @@ class ResourceRepository:
         self.db.flush()
         return entities
 
-    def count_by_analysis(self, analysis_id: uuid.UUID) -> int:
-        statement = select(func.count()).select_from(Resource).where(Resource.analysis_id == analysis_id)
+    def count_by_analysis(self, tenant_id: str, analysis_id: uuid.UUID) -> int:
+        statement = select(func.count()).select_from(Resource).where(
+            (Resource.tenant_id == tenant_id) & (Resource.analysis_id == analysis_id)
+        )
         return int(self.db.scalar(statement) or 0)

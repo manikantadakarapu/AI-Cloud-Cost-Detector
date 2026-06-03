@@ -12,9 +12,10 @@ class FindingRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def bulk_create(self, *, analysis_id: uuid.UUID, findings: list[FinOpsFinding]) -> list[AnalysisFinding]:
+    def bulk_create(self, *, tenant_id: str, analysis_id: uuid.UUID, findings: list[FinOpsFinding]) -> list[AnalysisFinding]:
         entities = [
             AnalysisFinding(
+                tenant_id=tenant_id,
                 analysis_id=analysis_id,
                 resource_id=finding.resource_id,
                 severity=finding.severity,
@@ -30,16 +31,16 @@ class FindingRepository:
         self.db.flush()
         return entities
 
-    def list_by_analysis(self, analysis_id: uuid.UUID) -> list[AnalysisFinding]:
+    def list_by_analysis(self, tenant_id: str, analysis_id: uuid.UUID) -> list[AnalysisFinding]:
         statement = (
             select(AnalysisFinding)
-            .where(AnalysisFinding.analysis_id == analysis_id)
+            .where((AnalysisFinding.tenant_id == tenant_id) & (AnalysisFinding.analysis_id == analysis_id))
             .order_by(AnalysisFinding.severity, AnalysisFinding.created_at)
         )
         return list(self.db.scalars(statement))
 
-    def get_potential_savings(self, analysis_id: uuid.UUID) -> Decimal:
+    def get_potential_savings(self, tenant_id: str, analysis_id: uuid.UUID) -> Decimal:
         statement = select(func.coalesce(func.sum(AnalysisFinding.estimated_monthly_savings), 0)).where(
-            AnalysisFinding.analysis_id == analysis_id
+            (AnalysisFinding.tenant_id == tenant_id) & (AnalysisFinding.analysis_id == analysis_id)
         )
         return Decimal(self.db.scalar(statement) or 0)

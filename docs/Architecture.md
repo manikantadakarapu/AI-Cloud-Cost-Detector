@@ -85,12 +85,15 @@ flowchart TB
 
 ## Data Model
 
+All core models include a `tenant_id` to strictly isolate organizational data.
+
 ```mermaid
 erDiagram
     ANALYSES ||--o{ RESOURCES : contains
 
     ANALYSES {
         uuid id PK
+        string tenant_id
         string subscription_id
         string resource_group
         string status
@@ -100,6 +103,7 @@ erDiagram
 
     RESOURCES {
         uuid id PK
+        string tenant_id
         uuid analysis_id FK
         text resource_id
         string name
@@ -186,6 +190,12 @@ flowchart TB
 - Swagger/OpenAPI exposure should be configurable by environment.
 - Future frontend authentication and authorization should protect all tenant/subscription data.
 
+## Multi-Tenancy Strategy
+
+- **Logical Isolation:** All critical tables (`users`, `analyses`, `resources`, etc.) include a `tenant_id` column.
+- **Tenant-Aware Context:** The active `AuthenticatedUser` instance naturally carries the `tenant_id` derived from the Azure Entra ID token `tid` claims.
+- **Strict Repositories:** All database queries implicitly filter by the user's `tenant_id`. Any attempts to query across tenants immediately return a `404 Not Found` to prevent data leakage and discovery.
+- **Isolated Background Workers:** Redis RQ tasks are enriched with explicit `tenant_id` payloads.
 
 ## Authentication
 

@@ -13,9 +13,10 @@ class CostRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def bulk_create(self, *, analysis_id: uuid.UUID, costs: list[ResourceCostBreakdown]) -> list[AnalysisCost]:
+    def bulk_create(self, *, tenant_id: str, analysis_id: uuid.UUID, costs: list[ResourceCostBreakdown]) -> list[AnalysisCost]:
         entities = [
             AnalysisCost(
+                tenant_id=tenant_id,
                 analysis_id=analysis_id,
                 resource_id=cost.resource_id,
                 resource_name=cost.resource_name,
@@ -30,16 +31,20 @@ class CostRepository:
         self.db.flush()
         return entities
 
-    def get_total_monthly_cost(self, analysis_id: uuid.UUID) -> Decimal:
+    def get_total_monthly_cost(self, tenant_id: str, analysis_id: uuid.UUID) -> Decimal:
         statement = select(func.coalesce(func.sum(AnalysisCost.cost_amount), 0)).where(
-            AnalysisCost.analysis_id == analysis_id
+            (AnalysisCost.tenant_id == tenant_id) & (AnalysisCost.analysis_id == analysis_id)
         )
         return Decimal(self.db.scalar(statement) or 0)
 
-    def list_by_analysis(self, analysis_id: uuid.UUID) -> list[AnalysisCost]:
-        statement = select(AnalysisCost).where(AnalysisCost.analysis_id == analysis_id)
+    def list_by_analysis(self, tenant_id: str, analysis_id: uuid.UUID) -> list[AnalysisCost]:
+        statement = select(AnalysisCost).where(
+            (AnalysisCost.tenant_id == tenant_id) & (AnalysisCost.analysis_id == analysis_id)
+        )
         return list(self.db.scalars(statement))
 
-    def latest_billing_period(self, analysis_id: uuid.UUID) -> date | None:
-        statement = select(func.max(AnalysisCost.billing_period)).where(AnalysisCost.analysis_id == analysis_id)
+    def latest_billing_period(self, tenant_id: str, analysis_id: uuid.UUID) -> date | None:
+        statement = select(func.max(AnalysisCost.billing_period)).where(
+            (AnalysisCost.tenant_id == tenant_id) & (AnalysisCost.analysis_id == analysis_id)
+        )
         return self.db.scalar(statement)

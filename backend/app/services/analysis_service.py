@@ -61,13 +61,13 @@ class AnalysisService:
             resource_count=0,
         )
 
-    def execute_analysis(self, analysis_id: uuid.UUID) -> None:
-        analysis = self.analysis_repository.get(analysis_id)
+    def execute_analysis(self, tenant_id: str, analysis_id: uuid.UUID) -> None:
+        analysis = self.analysis_repository.get(tenant_id, analysis_id)
         if analysis is None:
             raise NotFoundError("Analysis not found")
 
         try:
-            self._update_progress(analysis_id, status="running", progress=10, stage="resource-discovery")
+            self._update_progress(tenant_id, analysis_id, status="running", progress=10, stage="resource-discovery")
             resources = run_with_retries(
                 "resource-discovery",
                 lambda: self.azure_resource_service.discover_resources(
@@ -75,10 +75,10 @@ class AnalysisService:
                     resource_group=analysis.resource_group,
                 ),
             )
-            self.resource_repository.bulk_create(analysis_id=analysis.id, resources=resources)
+            self.resource_repository.bulk_create(tenant_id=tenant_id, analysis_id=analysis.id, resources=resources)
             self.db.commit()
 
-            self._update_progress(analysis_id, status="running", progress=30, stage="cost-analysis")
+            self._update_progress(tenant_id, analysis_id, status="running", progress=30, stage="cost-analysis")
             costs = run_with_retries(
                 "cost-analysis",
                 lambda: self.azure_cost_service.get_resource_cost_breakdown(
@@ -86,42 +86,43 @@ class AnalysisService:
                     resource_group=analysis.resource_group,
                 ),
             )
-            self.cost_repository.bulk_create(analysis_id=analysis.id, costs=costs)
+            self.cost_repository.bulk_create(tenant_id=tenant_id, analysis_id=analysis.id, costs=costs)
             self.db.commit()
 
-            self._update_progress(analysis_id, status="running", progress=50, stage="advisor-analysis")
+            self._update_progress(tenant_id, analysis_id, status="running", progress=50, stage="advisor-analysis")
             advisor_recommendations = run_with_retries(
                 "advisor-analysis",
                 lambda: self.azure_advisor_service.get_recommendations(analysis.subscription_id),
             )
 
-            self._update_progress(analysis_id, status="running", progress=70, stage="metrics-analysis")
+            self._update_progress(tenant_id, analysis_id, status="running", progress=70, stage="metrics-analysis")
             metrics = run_with_retries(
                 "metrics-analysis",
                 lambda: self.azure_monitor_service.get_resource_metrics(resources),
             )
 
-            self._update_progress(analysis_id, status="running", progress=85, stage="finops-analysis")
+            self._update_progress(tenant_id, analysis_id, status="running", progress=85, stage="finops-analysis")
             findings = self.finops_engine.evaluate(
                 resources=resources,
                 costs=costs,
                 metrics=metrics,
                 advisor_recommendations=advisor_recommendations,
             )
-            self.finding_repository.bulk_create(analysis_id=analysis.id, findings=findings)
+            self.finding_repository.bulk_create(tenant_id=tenant_id, analysis_id=analysis.id, findings=findings)
             self.db.commit()
 
-            self._update_progress(analysis_id, status="running", progress=95, stage="scoring")
-            total_cost = self.cost_repository.get_total_monthly_cost(analysis.id)
+            self._update_progress(tenant_id, analysis_id, status="running", progress=95, stage="scoring")
+            total_cost = self.cost_repository.get_total_monthly_cost(tenant_id, analysis.id)
             score = self.finops_score_service.calculate(findings=findings, total_monthly_cost=total_cost)
-            self.score_repository.create(analysis_id=analysis.id, score=score)
+            self.score_repository.create(tenant_id=tenant_id, analysis_id=analysis.id, score=score)
             self.db.commit()
 
-            self._update_progress(analysis_id, status="completed", progress=100, stage="completed")
+            self._update_progress(tenant_id, analysis_id, status="completed", progress=100, stage="completed")
         except Exception as exc:
             self.db.rollback()
-            logger.exception("Failed to execute analysis", extra={"extra": {"analysis_id": str(analysis_id)}})
+            logger.exception("Failed to execute analysis", extra={"extra": {"tenant_id": tenant_id, "analysis_id": str(analysis_id)}})
             self._update_progress(
+                tenant_id,
                 analysis_id,
                 status="failed",
                 progress=100,
@@ -129,25 +130,25 @@ class AnalysisService:
                 error_message=str(exc),
             )
 
-    def get_findings(self, analysis_id: uuid.UUID) -> list[AnalysisFindingResponse]:
-        findings = self.finding_repository.list_by_analysis(analysis_id)
+    def get_findings(self, tenant_id: str, analysis_id: uuid.UUID) -> list[AnalysisFindingResponse]:
+        findings = self.finding_repository.list_by_analysis(tenant_id, analysis_id)
         return [AnalysisFindingResponse.model_validate(finding) for finding in findings]
 
-    def get_cost_summary(self, analysis_id: uuid.UUID) -> CostSummaryResponse:
+    def get_cost_summary(self, tenant_id: str, analysis_id: uuid.UUID) -> CostSummaryResponse:
         return CostSummaryResponse(
-            total_monthly_cost=self.cost_repository.get_total_monthly_cost(analysis_id),
-            potential_savings=self.finding_repository.get_potential_savings(analysis_id),
-            resource_count=self.resource_repository.count_by_analysis(analysis_id),
+            total_monthly_cost=self.cost_repository.get_total_monthly_cost(tenant_id, analysis_id),
+            potential_savings=self.finding_repository.get_potential_savings(tenant_id, analysis_id),
+            resource_count=self.resource_repository.count_by_analysis(tenant_id, analysis_id),
         )
 
-    def get_score(self, analysis_id: uuid.UUID) -> FinOpsScoreResponse:
-        score = self.score_repository.get_by_analysis(analysis_id)
+    def get_score(self, tenant_id: str, analysis_id: uuid.UUID) -> FinOpsScoreResponse:
+        score = self.score_repository.get_by_analysis(tenant_id, analysis_id)
         if score is None:
             raise NotFoundError("FinOps score not found for analysis")
         return FinOpsScoreResponse.model_validate(score)
 
-    def get_status(self, analysis_id: uuid.UUID) -> AnalysisStatusResponse:
-        analysis = self.analysis_repository.get(analysis_id)
+    def get_status(self, tenant_id: str, analysis_id: uuid.UUID) -> AnalysisStatusResponse:
+        analysis = self.analysis_repository.get(tenant_id, analysis_id)
         if analysis is None:
             raise NotFoundError("Analysis not found")
         return AnalysisStatusResponse(
@@ -161,6 +162,7 @@ class AnalysisService:
 
     def _update_progress(
         self,
+        tenant_id: str,
         analysis_id: uuid.UUID,
         *,
         status: str,
@@ -169,6 +171,7 @@ class AnalysisService:
         error_message: str | None = None,
     ) -> None:
         self.analysis_repository.update_progress(
+            tenant_id,
             analysis_id,
             status=status,
             progress_percentage=progress,
@@ -183,9 +186,10 @@ class AnalysisService:
                 progress=progress,
                 stage=stage,
                 error=error_message,
-            )
+            ),
+            tenant_id,
         )
         logger.info(
             "Analysis progress updated",
-            extra={"extra": {"analysis_id": str(analysis_id), "status": status, "progress": progress, "stage": stage}},
+            extra={"extra": {"tenant_id": tenant_id, "analysis_id": str(analysis_id), "status": status, "progress": progress, "stage": stage}},
         )

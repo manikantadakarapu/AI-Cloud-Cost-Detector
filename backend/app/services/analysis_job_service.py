@@ -17,11 +17,12 @@ class AnalysisJobService:
         self.queue = queue
         self.analysis_repository = AnalysisRepository(db)
 
-    def create_and_enqueue(self, payload: AnalysisCreateRequest) -> AnalysisCreateResponse:
-        analysis = self.analysis_repository.create(payload, status="queued")
+    def create_and_enqueue(self, tenant_id: str, payload: AnalysisCreateRequest) -> AnalysisCreateResponse:
+        analysis = self.analysis_repository.create(tenant_id, payload, status="queued")
         job_id = f"analysis-{analysis.id.hex}"
-        self.analysis_repository.set_job_id(analysis.id, job_id)
+        self.analysis_repository.set_job_id(tenant_id, analysis.id, job_id)
         self.analysis_repository.update_progress(
+            tenant_id,
             analysis.id,
             status="queued",
             progress_percentage=0,
@@ -32,6 +33,7 @@ class AnalysisJobService:
         self.queue.enqueue(
             "app.workers.analysis_worker.process_analysis_job",
             str(analysis.id),
+            tenant_id,
             job_id=job_id,
             retry=Retry(max=3, interval=[10, 30, 60]),
             job_timeout="2h",
@@ -40,7 +42,7 @@ class AnalysisJobService:
         )
         logger.info(
             "Queued analysis job",
-            extra={"extra": {"analysis_id": str(analysis.id), "job_id": job_id}},
+            extra={"extra": {"tenant_id": tenant_id, "analysis_id": str(analysis.id), "job_id": job_id}},
         )
         return AnalysisCreateResponse(
             analysis_id=analysis.id,
@@ -49,8 +51,8 @@ class AnalysisJobService:
             resource_count=0,
         )
 
-    def get_status(self, analysis_id: uuid.UUID) -> AnalysisStatusResponse:
-        analysis = self.analysis_repository.get(analysis_id)
+    def get_status(self, tenant_id: str, analysis_id: uuid.UUID) -> AnalysisStatusResponse:
+        analysis = self.analysis_repository.get(tenant_id, analysis_id)
         if analysis is None:
             from app.core.exceptions import NotFoundError
 

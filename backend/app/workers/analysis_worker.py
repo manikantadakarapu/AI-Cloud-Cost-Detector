@@ -4,16 +4,25 @@ import uuid
 logger = logging.getLogger(__name__)
 
 
-def process_analysis_job(analysis_id: str) -> None:
+def process_analysis_job(analysis_id: str, tenant_id: str) -> None:
     parsed_analysis_id = uuid.UUID(analysis_id)
     db = create_worker_session()
     try:
-        logger.info("Worker started analysis job", extra={"extra": {"analysis_id": analysis_id}})
+        logger.info(
+            "Worker started analysis job",
+            extra={"extra": {"tenant_id": tenant_id, "analysis_id": analysis_id}}
+        )
         service = build_analysis_service(db)
-        service.execute_analysis(parsed_analysis_id)
-        logger.info("Worker finished analysis job", extra={"extra": {"analysis_id": analysis_id}})
+        service.execute_analysis(tenant_id, parsed_analysis_id)
+        logger.info(
+            "Worker finished analysis job",
+            extra={"extra": {"tenant_id": tenant_id, "analysis_id": analysis_id}}
+        )
     except Exception:
-        logger.exception("Worker failed unexpectedly", extra={"extra": {"analysis_id": analysis_id}})
+        logger.exception(
+            "Worker failed unexpectedly",
+            extra={"extra": {"tenant_id": tenant_id, "analysis_id": analysis_id}}
+        )
     finally:
         db.close()
 
