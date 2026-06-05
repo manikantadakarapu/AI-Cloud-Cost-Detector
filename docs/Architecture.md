@@ -6,20 +6,23 @@ AI Cost Detective is an Azure FinOps platform designed to discover Azure resourc
 
 The current implementation provides the FastAPI backend foundation, PostgreSQL persistence, Azure SDK authentication, Azure subscription/resource group discovery, Azure Resource Graph resource discovery, SQLAlchemy models, Alembic migrations, centralized error handling, and structured logging.
 
-Future phases will add a Next.js frontend, Azure Cost Management integration, Azure Advisor integration, Azure Monitor metrics, Redis-backed asynchronous processing, a FinOps rules engine, and an OpenAI-powered explanation layer.
+Future phases will add Azure Cost Management integration, Azure Advisor integration, Azure Monitor metrics, Redis-backed asynchronous processing, a FinOps rules engine, and an OpenAI-powered explanation layer.
+
+The Next.js frontend has been implemented, providing a robust UI with React Query, Recharts, and Framer Motion.
 
 ## System Context
 
 ```mermaid
 flowchart LR
     User[User / FinOps Engineer]
-    Frontend[Next.js Frontend<br/>Future]
+    Frontend[Next.js Frontend<br/>Implemented]
     Backend[FastAPI Backend<br/>Implemented Foundation]
     Postgres[(PostgreSQL)]
     ResourceGraph[Azure Resource Graph]
     CostMgmt[Azure Cost Management API<br/>Future]
     Advisor[Azure Advisor API<br/>Future]
     Monitor[Azure Monitor<br/>Future]
+    UI[Next.js Dashboard<br/>Implemented]
     Redis[Redis Queue<br/>Future]
     Worker[Analysis Worker<br/>Future]
     OpenAI[OpenAI Analysis Layer<br/>Future]

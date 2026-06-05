@@ -62,6 +62,7 @@ Swagger UI is available at `http://localhost:8000/docs`.
 - `GET /api/v1/subscriptions`: Lists accessible Azure subscriptions.
 - `GET /api/v1/resource-groups/{subscription_id}`: Lists resource groups in a subscription.
 - `GET /health`: Checks database, Redis, and Azure authentication.
+- `GET /api/v1/analyses`: Lists all historical analyses for the current tenant.
 - `POST /api/v1/analysis`: Creates an analysis record, queues background execution, and returns the analysis ID and job ID immediately.
 - `GET /api/v1/analysis/{analysis_id}/status`: Returns status, progress percentage, current stage, and error details when applicable.
 - `GET /api/v1/analysis/{analysis_id}/findings`: Lists generated FinOps findings for an analysis.

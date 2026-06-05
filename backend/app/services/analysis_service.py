@@ -61,6 +61,11 @@ class AnalysisService:
             resource_count=0,
         )
 
+    def list_analyses(self, tenant_id: str, *, skip: int = 0, limit: int = 50) -> list["AnalysisResponse"]:
+        from app.schemas.analysis_schema import AnalysisResponse
+        analyses = self.analysis_repository.list_by_tenant(tenant_id, skip=skip, limit=limit)
+        return [AnalysisResponse.model_validate(a) for a in analyses]
+
     def execute_analysis(self, tenant_id: str, analysis_id: uuid.UUID) -> None:
         analysis = self.analysis_repository.get(tenant_id, analysis_id)
         if analysis is None:

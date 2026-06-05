@@ -23,6 +23,16 @@ class AnalysisRepository:
         self.db.flush()
         return analysis
 
+    def list_by_tenant(self, tenant_id: str, *, skip: int = 0, limit: int = 50) -> list[Analysis]:
+        statement = (
+            select(Analysis)
+            .where(Analysis.tenant_id == tenant_id)
+            .order_by(Analysis.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return list(self.db.scalars(statement).all())
+
     def update_status(self, tenant_id: str, analysis_id: uuid.UUID, status: str) -> None:
         analysis = self._get_tenant_scoped(tenant_id, analysis_id)
         if analysis is not None:
@@ -65,6 +75,16 @@ class AnalysisRepository:
             analysis.completed_at = datetime.now(timezone.utc)
         self.db.flush()
         return analysis
+
+    def list_by_tenant(self, tenant_id: str, *, skip: int = 0, limit: int = 50) -> list[Analysis]:
+        statement = (
+            select(Analysis)
+            .where(Analysis.tenant_id == tenant_id)
+            .order_by(Analysis.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return list(self.db.scalars(statement).all())
 
     def _get_tenant_scoped(self, tenant_id: str, analysis_id: uuid.UUID) -> Analysis | None:
         statement = select(Analysis).where(

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health_routes import router as health_router
 from app.api.v1.router import api_router
@@ -43,6 +44,13 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     app.include_router(websocket_router)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     register_exception_handlers(app)
     return app
 

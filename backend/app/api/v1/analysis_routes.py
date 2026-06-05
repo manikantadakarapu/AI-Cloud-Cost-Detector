@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, status
 
 from app.api.dependencies import get_analysis_job_service, get_analysis_service
 from app.api.dependencies.authorization import require_permission
+from app.api.dependencies.core import get_current_user
+from app.core.auth import AuthenticatedUser
 from app.core.permissions import PermissionEnum
-from app.schemas.analysis_schema import AnalysisCreateRequest, AnalysisCreateResponse, AnalysisStatusResponse
+from app.schemas.analysis_schema import AnalysisCreateRequest, AnalysisCreateResponse, AnalysisStatusResponse, AnalysisResponse
 from app.schemas.cost_schema import CostSummaryResponse
 from app.schemas.finding_schema import AnalysisFindingResponse
 from app.schemas.score_schema import FinOpsScoreResponse
@@ -13,6 +15,22 @@ from app.services.analysis_job_service import AnalysisJobService
 from app.services.analysis_service import AnalysisService
 
 router = APIRouter(tags=["Analysis"])
+
+
+@router.get(
+    "/analyses",
+    response_model=list[AnalysisResponse],
+    summary="List analyses",
+    description="Returns all analyses for the current tenant, sorted by most recent first.",
+    dependencies=[Depends(require_permission(PermissionEnum.VIEW_ANALYSIS))],
+)
+def list_analyses(
+    skip: int = 0,
+    limit: int = 50,
+    service: AnalysisService = Depends(get_analysis_service),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> list[AnalysisResponse]:
+    return service.list_analyses(current_user.tenant_id, skip=skip, limit=limit)
 
 
 @router.post(
@@ -27,8 +45,9 @@ router = APIRouter(tags=["Analysis"])
 def start_analysis(
     payload: AnalysisCreateRequest,
     service: AnalysisJobService = Depends(get_analysis_job_service),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ) -> AnalysisCreateResponse:
-    return service.create_and_enqueue(payload)
+    return service.create_and_enqueue(current_user.tenant_id, payload)
 
 
 @router.get(
@@ -42,8 +61,9 @@ def start_analysis(
 def get_analysis_status(
     analysis_id: uuid.UUID,
     service: AnalysisJobService = Depends(get_analysis_job_service),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ) -> AnalysisStatusResponse:
-    return service.get_status(analysis_id)
+    return service.get_status(current_user.tenant_id, analysis_id)
 
 
 @router.get(
@@ -57,8 +77,9 @@ def get_analysis_status(
 def get_analysis_findings(
     analysis_id: uuid.UUID,
     service: AnalysisService = Depends(get_analysis_service),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ) -> list[AnalysisFindingResponse]:
-    return service.get_findings(analysis_id)
+    return service.get_findings(current_user.tenant_id, analysis_id)
 
 
 @router.get(
@@ -72,8 +93,9 @@ def get_analysis_findings(
 def get_analysis_cost_summary(
     analysis_id: uuid.UUID,
     service: AnalysisService = Depends(get_analysis_service),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ) -> CostSummaryResponse:
-    return service.get_cost_summary(analysis_id)
+    return service.get_cost_summary(current_user.tenant_id, analysis_id)
 
 
 @router.get(
@@ -87,5 +109,6 @@ def get_analysis_cost_summary(
 def get_analysis_score(
     analysis_id: uuid.UUID,
     service: AnalysisService = Depends(get_analysis_service),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ) -> FinOpsScoreResponse:
-    return service.get_score(analysis_id)
+    return service.get_score(current_user.tenant_id, analysis_id)

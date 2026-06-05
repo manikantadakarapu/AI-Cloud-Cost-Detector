@@ -52,7 +52,7 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor User
-    participant UI as Next.js Dashboard (Future)
+    participant UI as Next.js Dashboard (Implemented)
     participant API as FastAPI Backend
     participant DB as PostgreSQL
     participant ARG as Azure Resource Graph
@@ -258,17 +258,15 @@ Expected enrichment outputs:
 
 ### 10. Dashboard Displays Results
 
-The future Next.js dashboard will display analysis results from PostgreSQL through FastAPI endpoints.
+The implemented Next.js dashboard displays analysis results from PostgreSQL through FastAPI endpoints using TanStack Query.
 
-Expected dashboard views:
+Implemented dashboard views:
 
-- Analysis status
-- Resource inventory
-- Cost trends
-- Optimization findings
-- Estimated savings
-- AI-enriched explanations
-- Exportable recommendations
+- Real-time analysis status (via WebSockets)
+- Resource inventory counts
+- FinOps health scores and categorization
+- Optimization findings by severity
+- Estimated savings KPIs
 
 ## Future Asynchronous Flow
 
@@ -276,7 +274,7 @@ For production workloads, analysis should run asynchronously through Redis Queue
 
 ```mermaid
 flowchart LR
-    UI[Next.js Dashboard<br/>Future]
+    UI[Next.js Dashboard<br/>Implemented]
     API[FastAPI Backend]
     DB[(PostgreSQL)]
     Redis[Redis Queue<br/>Future]
