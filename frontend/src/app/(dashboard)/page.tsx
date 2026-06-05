@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
 import { motion, type Variants } from "framer-motion"
@@ -102,18 +102,18 @@ export default function DashboardPage() {
     Info: "var(--color-info)"
   }
 
-  const findingsBySeverity = findings?.reduce((acc, f) => {
+  const findingsBySeverity = useMemo(() => findings?.reduce((acc, f) => {
     acc[f.severity] = (acc[f.severity] || 0) + 1
     return acc
-  }, {} as Record<string, number>)
+  }, {} as Record<string, number>), [findings])
 
-  const pieData = findingsBySeverity
+  const pieData = useMemo(() => findingsBySeverity
     ? Object.entries(findingsBySeverity).map(([name, value]) => ({ name, value }))
-    : []
+    : [], [findingsBySeverity])
 
-  const topSavings = findings
+  const topSavings = useMemo(() => findings
     ? [...findings].sort((a, b) => b.estimated_monthly_savings - a.estimated_monthly_savings).slice(0, 5)
-    : []
+    : [], [findings])
 
   const formatCurrency = (val: number) => `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
@@ -228,7 +228,8 @@ export default function DashboardPage() {
                       <YAxis dataKey="title" type="category" width={150} stroke="var(--color-muted-foreground)" fontSize={11} tickFormatter={(v) => v.length > 20 ? v.substring(0,20)+'...' : v} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "8px" }}
-                        formatter={(value: any) => [formatCurrency(Number(value) || 0), "Savings"]}
+                        formatter={(value: unknown) => [formatCurrency(Number(value) || 0), "Savings"]}
+                        cursor={{ fill: 'var(--color-muted)' }}
                       />
                       <Bar dataKey="estimated_monthly_savings" fill="var(--color-success)" radius={[0, 4, 4, 0]} barSize={24} />
                     </BarChart>
@@ -283,6 +284,7 @@ export default function DashboardPage() {
               </div>
 
               <Button 
+                aria-label="Run new FinOps analysis scan"
                 className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20" 
                 onClick={() => createAnalysis.mutate()}
                 disabled={!selectedSub || createAnalysis.isPending}

@@ -2,7 +2,8 @@
 
 import { useSession, signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
-import { Bell, ActivitySquare, ChevronRight, LogOut, Settings, UserCircle } from "lucide-react"
+import { useMemo } from "react"
+import { Bell, ActivitySquare, ChevronRight, LogOut, Settings, UserCircle, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-export function Header() {
+export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const { data: session } = useSession()
   const pathname = usePathname()
   
@@ -24,17 +25,22 @@ export function Header() {
     : "U"
 
   // Generate Breadcrumbs
-  const paths = pathname.split('/').filter(Boolean)
-  const breadcrumbs = paths.map(path => {
-    return path.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
-  })
-  
-  if (breadcrumbs.length === 0) breadcrumbs.push("Dashboard")
+  const breadcrumbs = useMemo(() => {
+    const paths = pathname.split('/').filter(Boolean)
+    const crumbs = paths.map(path => {
+      return path.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+    })
+    if (crumbs.length === 0) crumbs.push("Dashboard")
+    return crumbs
+  }, [pathname])
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/50 bg-background/80 px-6 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/50 bg-background/80 px-4 md:px-6 backdrop-blur-xl">
       <div className="flex flex-1 items-center gap-2 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-md border border-border/50">
+        <Button variant="ghost" size="icon" className="md:hidden mr-2" onClick={onMenuToggle} aria-label="Open Navigation Menu">
+          <Menu className="h-5 w-5" />
+        </Button>
+        <div className="hidden md:flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-md border border-border/50">
           <ActivitySquare className="h-4 w-4 text-success" />
           <span className="font-medium text-foreground">AI Cost Detective</span>
           {breadcrumbs.map((crumb, idx) => (
@@ -49,15 +55,15 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="text-muted-foreground relative hover:bg-muted/50 hover:text-foreground transition-colors">
+        <Button variant="ghost" size="icon" className="text-muted-foreground relative hover:bg-muted/50 hover:text-foreground transition-colors" aria-label="Notifications">
           <Bell className="h-5 w-5" />
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary ring-2 ring-background animate-pulse"></span>
         </Button>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="relative h-9 w-9 rounded-full ring-2 ring-transparent hover:ring-primary/50 transition-all focus:outline-none">
+          <DropdownMenuTrigger className="relative h-9 w-9 rounded-full ring-2 ring-transparent hover:ring-primary/50 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <Avatar className="h-9 w-9">
-              <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
+              <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || "User Avatar"} />
               <AvatarFallback className="bg-primary/20 text-primary font-bold">{userInitials}</AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
